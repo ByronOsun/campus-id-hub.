@@ -1,73 +1,112 @@
-# Welcome to your Lovable project
 
-## Project info
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+# Digital Student ID Generation & Management System
+## Egerton University
 
-## How can I edit this code?
+### Overview
+A full-stack web application that digitizes the entire student ID lifecycle — from application and photo upload, through admin verification, to virtual ID generation, status tracking, and lost/found management. Built with React + Supabase with real authentication restricted to `@student.egerton.ac.ke` emails.
 
-There are several ways of editing your application.
+---
 
-**Use Lovable**
+### Phase 1: Foundation & Authentication
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+**Database Setup (Supabase)**
+- Profiles table linked to `auth.users` (name, reg number, faculty, campus, course, year of study)
+- User roles table (student, admin) with secure role-checking function
+- RLS policies on all tables
 
-Changes made via Lovable will be committed automatically to this repo.
+**Authentication**
+- Login/signup page with Supabase Auth restricted to `@student.egerton.ac.ke` emails
+- Email verification flow
+- Auto-create student profile on signup
+- Separate admin login (admin role assigned via database)
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Phase 2: Student Portal
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+**Profile & Application Flow**
+- Student dashboard showing current ID status and notifications
+- Profile completion form: confirm/edit personal details (name, reg number, faculty, campus, course)
+- Passport photo upload to Supabase Storage with client-side validation (file type, size, aspect ratio)
+- Application submission with status indicator
 
-Follow these steps:
+**Virtual ID Card**
+- Modern digital card design inspired by the physical Egerton University ID
+- Includes: student photo, name, reg number, course, faculty, campus, expiry date
+- QR code containing verification data (scannable to verify authenticity)
+- Downloadable as an image
+- Card back with university details and barcode
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+**Status Tracking Dashboard**
+- Visual pipeline: Submitted → Verified → Approved → Printed → Ready for Collection
+- Real-time status updates with timestamps
+- Notification history
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+**Lost & Found Module (Student Side)**
+- Report lost ID form with details (date, circumstances)
+- View lost report status
+- Apply for replacement ID
+- Get notified if ID is found
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### Phase 3: Admin Portal
 
-**Edit a file directly in GitHub**
+**Verification Dashboard**
+- Queue of pending student applications
+- Side-by-side view: student details vs submitted photo
+- Approve/reject with comments
+- Batch operations for efficiency
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+**ID Management**
+- View all generated IDs with search and filters
+- Deactivate lost IDs
+- Manage lost-and-found reports (mark as found, notify student)
+- Generate batch print lists (exportable)
 
-**Use GitHub Codespaces**
+**Audit & Reporting**
+- Activity logs for all admin actions (who approved what, when)
+- Operational reports: IDs generated per period, pending queue size, lost ID stats
+- Simple charts/stats on the admin dashboard
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+### Phase 4: System Features
 
-This project is built with:
+**Notifications**
+- In-app notification system for status changes, approvals, rejections, and found IDs
+- Toast notifications for real-time feedback
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+**QR Verification Page**
+- Public-facing page that validates a scanned QR code
+- Shows student name, photo, reg number, and ID validity status
+- No login required to verify (read-only public endpoint)
 
-## How can I deploy this project?
+**Security & Governance**
+- All photos stored in Supabase Storage (not database)
+- Role-based access control (students see only their data, admins see all)
+- Audit trail table recording all state changes
+- Input validation on all forms using Zod
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
+### Design Direction
+- Clean, modern UI using the existing shadcn/ui component library
+- Egerton University green (#00843D) as the primary accent color
+- Mobile-responsive design throughout
+- The virtual ID card will feature a modern redesign with gradient green styling, university branding, and a prominent QR code
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Pages Summary
+1. **Login/Signup** — email auth with @student.egerton.ac.ke restriction
+2. **Student Dashboard** — status overview, notifications, quick actions
+3. **Application Form** — profile details + photo upload
+4. **Virtual ID View** — digital ID card with QR code + download
+5. **Lost ID Report** — report and track lost IDs
+6. **Admin Dashboard** — stats, pending queue, recent activity
+7. **Admin Verification** — review and approve/reject applications
+8. **Admin ID Management** — search, deactivate, manage all IDs
+9. **QR Verification** — public page for scanning and verifying IDs
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
