@@ -6,7 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { GraduationCap, Mail, Lock, User, ArrowRight } from "lucide-react";
+import { GraduationCap, Mail, Lock, User, ArrowRight, Shield } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type UserType = "student" | "staff";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,10 +17,16 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [userType, setUserType] = useState<UserType>("student");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (userType === "student" && !email.endsWith("@student.egerton.ac.ke")) {
+      toast.error("Students must use their @student.egerton.ac.ke email address");
+      return;
+    }
 
     setLoading(true);
 
@@ -54,7 +63,7 @@ export default function Auth() {
           <div className="absolute top-20 -left-20 w-96 h-96 rounded-full bg-accent/30 blur-3xl" />
           <div className="absolute bottom-20 right-10 w-80 h-80 rounded-full bg-primary-foreground/20 blur-3xl" />
         </div>
-        
+
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
             <GraduationCap className="h-10 w-10" />
@@ -100,15 +109,49 @@ export default function Auth() {
             <span className="text-xl font-bold">Egerton University</span>
           </div>
 
+          {/* User Type Toggle */}
+          <div className="flex rounded-lg border border-border bg-muted p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => { setUserType("student"); setEmail(""); }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all",
+                userType === "student"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <GraduationCap className="h-4 w-4" />
+              Student
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUserType("staff"); setEmail(""); }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all",
+                userType === "staff"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Shield className="h-4 w-4" />
+              Admin / Staff
+            </button>
+          </div>
+
           <Card className="border-0 shadow-xl">
             <CardHeader className="space-y-1 pb-4">
               <CardTitle className="text-2xl">
                 {isLogin ? "Welcome Back" : "Create Account"}
               </CardTitle>
               <CardDescription>
-                {isLogin
-                  ? "Sign in to your account"
-                  : "Create a new account to get started"}
+                {userType === "student"
+                  ? isLogin
+                    ? "Sign in with your university email"
+                    : "Register using your @student.egerton.ac.ke email"
+                  : isLogin
+                    ? "Sign in with your staff email"
+                    : "Register with your email address"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -130,13 +173,19 @@ export default function Auth() {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">
+                    {userType === "student" ? "University Email" : "Email"}
+                  </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={
+                        userType === "student"
+                          ? "you@student.egerton.ac.ke"
+                          : "you@example.com"
+                      }
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-10"
