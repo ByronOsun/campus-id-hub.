@@ -36,28 +36,32 @@ export default function AppSidebar() {
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        <div className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-3 px-3">
-          Student
-        </div>
-        {studentLinks.map((link) => (
-          <button
-            key={link.to}
-            onClick={() => navigate(link.to)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-              location.pathname === link.to
-                ? "bg-sidebar-accent text-sidebar-primary font-medium"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            )}
-          >
-            <link.icon className="h-4 w-4" />
-            {link.label}
-          </button>
-        ))}
+        {!isAdmin && (
+          <>
+            <div className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-3 px-3">
+              Student
+            </div>
+            {studentLinks.map((link) => (
+              <button
+                key={link.to}
+                onClick={() => navigate(link.to)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                  location.pathname === link.to
+                    ? "bg-sidebar-accent text-sidebar-primary font-medium"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                <link.icon className="h-4 w-4" />
+                {link.label}
+              </button>
+            ))}
+          </>
+        )}
 
         {isAdmin && (
           <>
-            <div className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mt-6 mb-3 px-3">
+            <div className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-3 px-3">
               Admin
             </div>
             {adminLinks.map((link) => (
