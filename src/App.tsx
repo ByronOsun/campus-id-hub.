@@ -20,15 +20,15 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AuthRedirect() {
-  const { user, loading, isAdmin } = useAuth();
-  if (loading) return null;
+  const { user, loading, isAdmin, roleLoaded } = useAuth();
+  if (loading || (user && !roleLoaded)) return null;
   if (user) return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
   return <Auth />;
 }
 
 function RootRedirect() {
-  const { user, loading, isAdmin } = useAuth();
-  if (loading) return null;
+  const { user, loading, isAdmin, roleLoaded } = useAuth();
+  if (loading || (user && !roleLoaded)) return null;
   if (!user) return <Navigate to="/auth" replace />;
   return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
 }
