@@ -35,13 +35,13 @@ export default function Auth() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back!");
-        navigate("/dashboard");
+        navigate("/");
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: fullName },
+            data: { full_name: fullName, user_type: userType },
             emailRedirectTo: window.location.origin,
           },
         });
