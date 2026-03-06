@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_pins: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_approved: boolean | null
+          pin: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_approved?: boolean | null
+          pin: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_approved?: boolean | null
+          pin?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -264,7 +288,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "student"
+      app_role: "admin" | "student" | "super_admin"
       application_status:
         | "draft"
         | "submitted"
@@ -408,7 +432,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "student"],
+      app_role: ["admin", "student", "super_admin"],
       application_status: [
         "draft",
         "submitted",
