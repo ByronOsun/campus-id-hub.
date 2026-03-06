@@ -7,6 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Mail, Lock, User, ArrowRight, KeyRound, Copy, CheckCircle2 } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { useNavigate } from "react-router-dom";
+
+const navigate = useNavigate();
 
 export default function AdminAuthForm() {
   const [mode, setMode] = useState<"pin_login" | "signup">("pin_login");
@@ -41,6 +44,8 @@ export default function AdminAuthForm() {
 
       if (otpError) throw otpError;
       toast.success("Welcome back, Admin!");
+      navigate("/admin", { replace: true});
+      
     } catch (error: any) {
       toast.error(error.message);
     } finally {
