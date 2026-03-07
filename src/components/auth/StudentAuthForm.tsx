@@ -34,7 +34,7 @@ export default function StudentAuthForm() {
           password,
           options: {
             data: { full_name: fullName, user_type: "student" },
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${window.location.origin}/auth`,
           },
         });
         if (error) throw error;

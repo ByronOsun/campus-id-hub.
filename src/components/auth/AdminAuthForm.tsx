@@ -9,9 +9,8 @@ import { Mail, Lock, User, ArrowRight, KeyRound, Copy, CheckCircle2 } from "luci
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useNavigate } from "react-router-dom";
 
-const navigate = useNavigate();
-
 export default function AdminAuthForm() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"pin_login" | "signup">("pin_login");
   const [loading, setLoading] = useState(false);
   const [pin, setPin] = useState("");
@@ -23,8 +22,8 @@ export default function AdminAuthForm() {
 
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin.length !== 6) {
-      toast.error("Please enter your 6-digit PIN");
+    if (pin.length !== 4) {
+      toast.error("Please enter your 4-digit PIN");
       return;
     }
 
@@ -44,8 +43,7 @@ export default function AdminAuthForm() {
 
       if (otpError) throw otpError;
       toast.success("Welcome back, Admin!");
-      navigate("/admin", { replace: true});
-      
+      navigate("/admin", { replace: true });
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -57,8 +55,7 @@ export default function AdminAuthForm() {
     e.preventDefault();
     setLoading(true);
 
-    // Generate a 6-digit PIN client-side
-    const newPin = String(Math.floor(100000 + Math.random() * 900000));
+    const newPin = String(Math.floor(1000 + Math.random() * 9000));
 
     try {
       const { error } = await supabase.auth.signUp({
@@ -66,7 +63,7 @@ export default function AdminAuthForm() {
         password,
         options: {
           data: { full_name: fullName, user_type: "staff", admin_pin: newPin },
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: `${window.location.origin}/auth`,
         },
       });
 
@@ -89,7 +86,6 @@ export default function AdminAuthForm() {
     }
   };
 
-  // Show PIN result after successful signup
   if (generatedPin) {
     return (
       <Card className="border-0 shadow-xl">
@@ -146,7 +142,7 @@ export default function AdminAuthForm() {
         </CardTitle>
         <CardDescription>
           {mode === "pin_login"
-            ? "Enter your 6-digit admin PIN to sign in"
+            ? "Enter your 4-digit admin PIN to sign in"
             : "Register to receive your unique admin PIN"}
         </CardDescription>
       </CardHeader>
@@ -156,19 +152,17 @@ export default function AdminAuthForm() {
             <div className="space-y-3">
               <Label className="text-center block">Admin PIN</Label>
               <div className="flex justify-center">
-                <InputOTP maxLength={6} value={pin} onChange={setPin}>
+                <InputOTP maxLength={4} value={pin} onChange={setPin}>
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />
                     <InputOTPSlot index={2} />
                     <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
                   </InputOTPGroup>
                 </InputOTP>
               </div>
             </div>
-            <Button type="submit" className="w-full gap-2" disabled={loading || pin.length !== 6}>
+            <Button type="submit" className="w-full gap-2" disabled={loading || pin.length !== 4}>
               {loading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               ) : (
