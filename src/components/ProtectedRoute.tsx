@@ -1,5 +1,6 @@
 import { useAuth } from "@/lib/auth";
 import { Navigate } from "react-router-dom";
+import AdminPendingApproval from "@/pages/AdminPendingApproval";
 
 export function ProtectedRoute({
   children,
@@ -10,7 +11,7 @@ export function ProtectedRoute({
   adminOnly?: boolean;
   superAdminOnly?: boolean;
 }) {
-  const { user, loading, isAdmin, isSuperAdmin, roleLoaded } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, isAdminApproved, roleLoaded } = useAuth();
 
   if (loading || (user && !roleLoaded)) {
     return (
@@ -21,6 +22,12 @@ export function ProtectedRoute({
   }
 
   if (!user) return <Navigate to="/auth" replace />;
+
+  // Show pending approval screen for unapproved admins
+  if (isAdmin && !isSuperAdmin && !isAdminApproved && (adminOnly || superAdminOnly)) {
+    return <AdminPendingApproval />;
+  }
+
   if (superAdminOnly && !isSuperAdmin) return <Navigate to="/admin" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/dashboard" replace />;
 

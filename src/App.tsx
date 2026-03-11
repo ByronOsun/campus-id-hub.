@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Application from "./pages/Application";
@@ -26,6 +29,27 @@ const queryClient = new QueryClient();
 
 function AuthRedirect() {
   const { user, loading, isAdmin, roleLoaded } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === "SIGNED_IN") {
+        // Check if this is from email verification by looking at URL hash
+        const hash = window.location.hash;
+        if (hash && (hash.includes("type=signup") || hash.includes("type=email"))) {
+          setSigningOut(true);
+          await supabase.auth.signOut();
+          toast.success("Email verified successfully! Please sign in.");
+          setSigningOut(false);
+          // Clear the hash
+          window.location.hash = "";
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (signingOut) return null;
   if (loading || (user && !roleLoaded)) return null;
   if (user) return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
   return <Auth />;
