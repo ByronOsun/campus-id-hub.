@@ -56,10 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("user_id", userId);
 
     const roles = (data || []).map((r) => r.role as string);
-    setIsAdmin(roles.includes("admin") || roles.includes("super_admin"));
+    const adminRole = roles.includes("admin") || roles.includes("super_admin");
+    setIsAdmin(adminRole);
     setIsSuperAdmin(roles.includes("super_admin"));
-    setRoleLoaded(true);
-  };
+
+    if (adminRole) {
+      const { data: pinData } = await supabase
+        .from("admin_pins")
+        .select("is_approved")
+        .eq("user_id", userId)
+        .maybeSingle();
+      setIsAdminApproved(pinData?.is_approved ?? false);
+    } else {
+      setIsAdminApproved(false);
+    }
 
   const refreshProfile = async () => {
     if (user) {
