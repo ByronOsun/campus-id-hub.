@@ -81,6 +81,30 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-1">Overview of your student ID status</p>
       </div>
 
+      {/* Email Verification Status */}
+      {user && !user.email_confirmed_at && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="rounded-xl bg-amber-100 dark:bg-amber-900/40 p-3">
+              <MailWarning className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 dark:text-amber-200">Email Not Verified</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">Please check your inbox and verify your email address to access all features.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {user && user.email_confirmed_at && (
+        <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-800">
+          <CardContent className="flex items-center gap-3 p-4">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Email verified: {user.email}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
