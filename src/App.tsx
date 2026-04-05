@@ -23,6 +23,7 @@ import LostIDManagement from "./pages/admin/LostIDManagement";
 import AdminApproval from "./pages/admin/AdminApproval";
 import Verify from "./pages/Verify";
 import ResetPassword from "./pages/ResetPassword";
+import ChangePin from "./pages/ChangePin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,7 @@ const App = () => (
             <Route path="/auth" element={<AuthRedirect />} />
             <Route path="/verify/:id" element={<Verify />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/change-pin" element={<ProtectedRoute><ChangePin /></ProtectedRoute>} />
             
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />

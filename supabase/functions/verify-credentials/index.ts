@@ -14,10 +14,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { pin } = await req.json()
+    const body = await req.json()
+    const { email, password } = body
 
-    if (!pin || typeof pin !== 'string' || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-      return new Response(JSON.stringify({ error: 'Invalid PIN format' }), {
+    if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
+      return new Response(JSON.stringify({ error: 'Email and password are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -28,31 +29,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Look up PIN
-    const { data: pinData, error: pinError } = await supabaseAdmin
-      .from('admin_pins')
-      .select('user_id, is_approved, pin_changed')
-      .eq('pin', pin)
-      .single()
-
-    if (pinError || !pinData) {
-      // Record failed attempt with generic identifier
-      await supabaseAdmin.from('login_attempts').insert({
-        identifier: `pin:${pin.substring(0, 2)}**`,
-        success: false,
-      })
-      return new Response(JSON.stringify({ error: 'Invalid PIN' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    // Check rate limiting for this user
+    // Check rate limiting
     const cutoff = new Date(Date.now() - LOCKOUT_MINUTES * 60 * 1000).toISOString()
     const { data: failedAttempts } = await supabaseAdmin
       .from('login_attempts')
       .select('id')
-      .eq('identifier', `admin:${pinData.user_id}`)
+      .eq('identifier', email.toLowerCase())
       .eq('success', false)
       .gte('attempted_at', cutoff)
 
@@ -65,35 +47,38 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (!pinData.is_approved) {
-      return new Response(JSON.stringify({ error: 'Your account is pending approval by the super admin.' }), {
-        status: 403,
+    // Verify password using a temp client with anon key
+    const tempClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!
+    )
+
+    const { data: signInData, error: signInError } = await tempClient.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError || !signInData.user) {
+      await supabaseAdmin.from('login_attempts').insert({
+        identifier: email.toLowerCase(),
+        success: false,
+      })
+      return new Response(JSON.stringify({ error: 'Invalid email or password' }), {
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Get user email
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(pinData.user_id)
-
-    if (userError || !userData.user) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    // Sign out the temp session immediately
+    await tempClient.auth.signOut()
 
     // Record successful attempt
     await supabaseAdmin.from('login_attempts').insert({
-      identifier: `admin:${pinData.user_id}`,
+      identifier: email.toLowerCase(),
       success: true,
     })
 
-    // Return verified status - no session creation, OTP will handle that
-    return new Response(JSON.stringify({
-      verified: true,
-      email: userData.user.email,
-      pin_changed: pinData.pin_changed ?? false,
-    }), {
+    return new Response(JSON.stringify({ verified: true, email: signInData.user.email }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {

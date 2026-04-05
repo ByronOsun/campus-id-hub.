@@ -11,7 +11,7 @@ export function ProtectedRoute({
   adminOnly?: boolean;
   superAdminOnly?: boolean;
 }) {
-  const { user, loading, isAdmin, isSuperAdmin, isAdminApproved, roleLoaded } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, isAdminApproved, pinChanged, roleLoaded } = useAuth();
 
   if (loading || (user && !roleLoaded)) {
     return (
@@ -26,6 +26,11 @@ export function ProtectedRoute({
   // Show pending approval screen for unapproved admins
   if (isAdmin && !isSuperAdmin && !isAdminApproved && (adminOnly || superAdminOnly)) {
     return <AdminPendingApproval />;
+  }
+
+  // Force PIN change for admins who haven't changed their initial PIN
+  if (isAdmin && isAdminApproved && !pinChanged && (adminOnly || superAdminOnly)) {
+    return <Navigate to="/change-pin" replace />;
   }
 
   if (superAdminOnly && !isSuperAdmin) return <Navigate to="/admin" replace />;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { validateKenyaPhone, sanitizePhone } from "@/lib/validators";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +106,13 @@ export default function Application() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+
+    const phoneValidation = validateKenyaPhone(form.phone);
+    if (!phoneValidation.valid) {
+      toast.error(phoneValidation.error);
+      return;
+    }
+
     setLoading(true);
 
     const { error } = await supabase
@@ -117,7 +125,7 @@ export default function Application() {
         course: form.course,
         campus: form.campus,
         year_of_study: form.year_of_study ? parseInt(form.year_of_study) : null,
-        phone: form.phone,
+        phone: form.phone ? sanitizePhone(form.phone) : null,
       })
       .eq("user_id", user.id);
 
@@ -265,7 +273,19 @@ export default function Application() {
             </div>
             <div className="space-y-2">
               <Label>Phone Number</Label>
-              <Input placeholder="+254..." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} disabled={!!alreadySubmitted} />
+              <Input
+                placeholder="+254712345678"
+                value={form.phone}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^\d+]/g, "");
+                  setForm({ ...form, phone: val });
+                }}
+                maxLength={13}
+                disabled={!!alreadySubmitted}
+              />
+              {form.phone && !validateKenyaPhone(form.phone).valid && (
+                <p className="text-xs text-destructive">{validateKenyaPhone(form.phone).error}</p>
+              )}
             </div>
           </div>
 
