@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
+const MAX_ATTEMPTS = 3
+const LOCKOUT_MINUTES = 15
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -13,7 +16,7 @@ Deno.serve(async (req) => {
   try {
     const { pin } = await req.json()
 
-    if (!pin || typeof pin !== 'string' || pin.length !== 4) {
+    if (!pin || typeof pin !== 'string' || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
       return new Response(JSON.stringify({ error: 'Invalid PIN format' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -28,13 +31,36 @@ Deno.serve(async (req) => {
     // Look up PIN
     const { data: pinData, error: pinError } = await supabaseAdmin
       .from('admin_pins')
-      .select('user_id, is_approved')
+      .select('user_id, is_approved, pin_changed')
       .eq('pin', pin)
       .single()
 
     if (pinError || !pinData) {
+      // Record failed attempt with generic identifier
+      await supabaseAdmin.from('login_attempts').insert({
+        identifier: `pin:${pin.substring(0, 2)}**`,
+        success: false,
+      })
       return new Response(JSON.stringify({ error: 'Invalid PIN' }), {
         status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Check rate limiting for this user
+    const cutoff = new Date(Date.now() - LOCKOUT_MINUTES * 60 * 1000).toISOString()
+    const { data: failedAttempts } = await supabaseAdmin
+      .from('login_attempts')
+      .select('id')
+      .eq('identifier', `admin:${pinData.user_id}`)
+      .eq('success', false)
+      .gte('attempted_at', cutoff)
+
+    if (failedAttempts && failedAttempts.length >= MAX_ATTEMPTS) {
+      return new Response(JSON.stringify({
+        error: `Account locked due to too many failed attempts. Please try again in ${LOCKOUT_MINUTES} minutes.`
+      }), {
+        status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -56,22 +82,17 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Generate magic link
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: userData.user.email!,
+    // Record successful attempt
+    await supabaseAdmin.from('login_attempts').insert({
+      identifier: `admin:${pinData.user_id}`,
+      success: true,
     })
 
-    if (linkError) {
-      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
+    // Return verified status - no session creation, OTP will handle that
     return new Response(JSON.stringify({
-      token_hash: linkData.properties.hashed_token,
+      verified: true,
       email: userData.user.email,
+      pin_changed: pinData.pin_changed ?? false,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

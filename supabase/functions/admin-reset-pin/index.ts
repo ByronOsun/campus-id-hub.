@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, new_pin } = await req.json()
+    const { email, new_pin, mark_changed } = await req.json()
 
     if (!email || typeof email !== 'string') {
       return new Response(JSON.stringify({ error: 'Email is required' }), {
@@ -72,10 +72,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Update the PIN
+    // Update the PIN (and mark as changed if requested)
+    const updateData: Record<string, any> = { pin: new_pin }
+    if (mark_changed) {
+      updateData.pin_changed = true
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from('admin_pins')
-      .update({ pin: new_pin })
+      .update(updateData)
       .eq('user_id', targetUser.id)
 
     if (updateError) {
