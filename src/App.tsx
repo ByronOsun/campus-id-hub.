@@ -23,6 +23,7 @@ import LostIDManagement from "./pages/admin/LostIDManagement";
 import AdminApproval from "./pages/admin/AdminApproval";
 import Verify from "./pages/Verify";
 import ResetPassword from "./pages/ResetPassword";
+import ChangePin from "./pages/ChangePin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
