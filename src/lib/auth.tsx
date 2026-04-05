@@ -9,6 +9,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isAdminApproved: boolean;
+  pinChanged: boolean;
   profile: any;
   roleLoaded: boolean;
   signOut: () => Promise<void>;
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   isSuperAdmin: false,
   isAdminApproved: false,
+  pinChanged: true,
   profile: null,
   roleLoaded: false,
   signOut: async () => {},
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAdminApproved, setIsAdminApproved] = useState(false);
+  const [pinChanged, setPinChanged] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
 
@@ -63,12 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (adminRole) {
       const { data: pinData } = await supabase
         .from("admin_pins")
-        .select("is_approved")
+        .select("is_approved, pin_changed")
         .eq("user_id", userId)
         .maybeSingle();
       setIsAdminApproved(pinData?.is_approved ?? false);
+      setPinChanged(pinData?.pin_changed ?? false);
     } else {
       setIsAdminApproved(false);
+      setPinChanged(true);
     }
     setRoleLoaded(true);
   };
@@ -94,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(false);
           setIsSuperAdmin(false);
           setIsAdminApproved(false);
+          setPinChanged(true);
           setRoleLoaded(true);
         }
         setLoading(false);
@@ -121,11 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(false);
     setIsSuperAdmin(false);
     setIsAdminApproved(false);
+    setPinChanged(true);
     setRoleLoaded(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isAdminApproved, profile, signOut, refreshProfile, roleLoaded }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isAdminApproved, pinChanged, profile, signOut, refreshProfile, roleLoaded }}>
       {children}
     </AuthContext.Provider>
   );
