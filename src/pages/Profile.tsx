@@ -86,6 +86,13 @@ export default function Profile() {
 
   const handleSave = async () => {
     if (!user) return;
+
+    const phoneValidation = validateKenyaPhone(form.phone);
+    if (!phoneValidation.valid) {
+      toast.error(phoneValidation.error);
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase
       .from("profiles")
@@ -97,7 +104,7 @@ export default function Profile() {
         course: form.course,
         campus: form.campus,
         year_of_study: form.year_of_study ? parseInt(form.year_of_study) : null,
-        phone: form.phone,
+        phone: form.phone ? sanitizePhone(form.phone) : null,
       })
       .eq("user_id", user.id);
 
