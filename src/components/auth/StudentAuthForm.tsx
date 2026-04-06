@@ -88,17 +88,17 @@ export default function StudentAuthForm() {
         if (error) throw new Error(data?.error || "Login failed");
         if (data?.error) throw new Error(data.error);
 
-        // Step 2: Send OTP for 2FA
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          email,
-          options: { shouldCreateUser: false },
+        // Step 2: Send OTP for 2FA via custom edge function
+        const { data: otpData, error: otpError } = await supabase.functions.invoke("send-otp", {
+          body: { email },
         });
 
-        if (otpError) throw otpError;
+        if (otpError) throw new Error(otpData?.error || "Failed to send verification code");
+        if (otpData?.error) throw new Error(otpData.error);
 
         setOtpEmail(email);
         setOtpStep(true);
-        toast.success("Verification code sent to your email!");
+        toast.success("A 6-digit verification code has been sent to your email!");
       } else {
         const { error } = await supabase.auth.signUp({
           email,
