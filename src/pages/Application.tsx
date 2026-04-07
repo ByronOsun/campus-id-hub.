@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
-import { validateKenyaPhone, sanitizePhone } from "@/lib/validators";
+import { validateKenyaPhone, sanitizePhone, validateStudentName, validateRegNumber } from "@/lib/validators";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,6 +111,18 @@ export default function Application() {
     if (!phoneValidation.valid) {
       toast.error(phoneValidation.error);
       return;
+    }
+    const nameVal = validateStudentName(form.full_name);
+    if (!nameVal.valid) {
+      toast.error(nameVal.error);
+      return;
+    }
+    if (form.reg_number) {
+      const regVal = validateRegNumber(form.reg_number);
+      if (!regVal.valid) {
+        toast.error(regVal.error);
+        return;
+      }
     }
 
     setLoading(true);
@@ -231,10 +243,16 @@ export default function Application() {
             <div className="space-y-2">
               <Label>Full Name *</Label>
               <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} disabled={!!alreadySubmitted} />
+              {form.full_name && !validateStudentName(form.full_name).valid && (
+                <p className="text-xs text-destructive">{validateStudentName(form.full_name).error}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Registration Number *</Label>
-              <Input placeholder="e.g. S13/12345/22" value={form.reg_number} onChange={(e) => setForm({ ...form, reg_number: e.target.value })} disabled={!!alreadySubmitted} />
+              <Input placeholder="e.g. S13/02928/23" value={form.reg_number} onChange={(e) => setForm({ ...form, reg_number: e.target.value })} disabled={!!alreadySubmitted} />
+              {form.reg_number && !validateRegNumber(form.reg_number).valid && (
+                <p className="text-xs text-destructive">{validateRegNumber(form.reg_number).error}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Faculty *</Label>

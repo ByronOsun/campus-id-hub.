@@ -244,6 +244,7 @@ export type Database = {
           id: string
           is_used: boolean
           max_attempts: number
+          otp_hash: string | null
         }
         Insert: {
           attempts?: number
@@ -253,6 +254,7 @@ export type Database = {
           id?: string
           is_used?: boolean
           max_attempts?: number
+          otp_hash?: string | null
         }
         Update: {
           attempts?: number
@@ -262,6 +264,7 @@ export type Database = {
           id?: string
           is_used?: boolean
           max_attempts?: number
+          otp_hash?: string | null
         }
         Relationships: []
       }
