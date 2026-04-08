@@ -38,6 +38,17 @@ Deno.serve(async (req) => {
 
     const normalizedEmail = email.toLowerCase().trim()
 
+    const resendApiKey = Deno.env.get('RESEND_API_KEY')
+    if (!resendApiKey) {
+      console.error('RESEND_API_KEY is not configured')
+      return new Response(JSON.stringify({ error: 'Email service not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const fromEmail = Deno.env.get('OTP_FROM_EMAIL') || 'onboarding@resend.dev'
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -80,31 +91,56 @@ Deno.serve(async (req) => {
       otp_hash: otpHash,
     })
 
-    // Send OTP via Supabase Auth magic link (will contain the code in email)
-    // We use signInWithOtp but the actual verification is done against our stored hash
-    const tempClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
-    )
+    // Send OTP via Resend API
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #ffffff;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #1a1a2e; font-size: 24px; margin: 0;">Egerton University</h1>
+          <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Digital ID System</p>
+        </div>
+        <div style="background: #f9fafb; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+          <p style="color: #374151; font-size: 16px; margin: 0 0 16px 0;">Your verification code is:</p>
+          <div style="background: #1a1a2e; color: #ffffff; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 16px 24px; border-radius: 8px; display: inline-block; font-family: 'Courier New', monospace;">
+            ${otpCode}
+          </div>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 16px;">This code expires in <strong>${OTP_EXPIRY_MINUTES} minutes</strong>.</p>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 16px;">
+          <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+            If you did not request this code, please ignore this email.<br/>
+            Do not share this code with anyone.
+          </p>
+        </div>
+      </div>
+    `
 
-    // Send the OTP code via Supabase Auth email (the token IS the 6-digit code)
-    const { error: otpError } = await tempClient.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: { shouldCreateUser: false },
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: `Egerton Digital ID <${fromEmail}>`,
+        to: [normalizedEmail],
+        subject: `${otpCode} — Your Verification Code`,
+        html: emailHtml,
+      }),
     })
 
-    if (otpError) {
-      console.error('OTP send error:', otpError.message)
-      // Even if Supabase Auth OTP fails, we still have our custom OTP stored
-      // In production with custom email domain, the code would be in the email template
+    if (!resendResponse.ok) {
+      const resendError = await resendResponse.text()
+      console.error('Resend API error:', resendResponse.status, resendError)
+      return new Response(JSON.stringify({ error: 'Failed to send verification email' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Verification code sent',
+      message: 'Verification code sent to your email',
       expires_in: OTP_EXPIRY_MINUTES * 60,
-      // In development/testing, include the code. Remove in production.
-      ...(Deno.env.get('ENVIRONMENT') === 'development' ? { debug_code: otpCode } : {}),
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
