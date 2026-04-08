@@ -85,11 +85,11 @@ Deno.serve(async (req) => {
 
     // Store hashed OTP
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000).toISOString()
-    await supabaseAdmin.from('otp_codes').insert({
+    const { data: otpRecord } = await supabaseAdmin.from('otp_codes').insert({
       email: normalizedEmail,
       expires_at: expiresAt,
       otp_hash: otpHash,
-    })
+    }).select('id').single()
 
     // Send OTP via Resend API
     const emailHtml = `
