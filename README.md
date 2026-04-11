@@ -1,7 +1,7 @@
 
 
 # Digital Student ID Generation & Management System
-## Egerton University
+## S.T.A.R_ID
 
 ### Overview
 A full-stack web application that digitizes the entire student ID lifecycle — from application and photo upload, through admin verification, to virtual ID generation, status tracking, and lost/found management. Built with React + Supabase with real authentication restricted to `@student.egerton.ac.ke` emails.
@@ -32,7 +32,7 @@ A full-stack web application that digitizes the entire student ID lifecycle — 
 - Application submission with status indicator
 
 **Virtual ID Card**
-- Modern digital card design inspired by the physical Egerton University ID
+- Modern digital card design inspired by the physical S.T.A.R_ID ID
 - Includes: student photo, name, reg number, course, faculty, campus, expiry date
 - QR code containing verification data (scannable to verify authenticity)
 - Downloadable as an image
@@ -93,7 +93,7 @@ A full-stack web application that digitizes the entire student ID lifecycle — 
 
 ### Design Direction
 - Clean, modern UI using the existing shadcn/ui component library
-- Egerton University green (#00843D) as the primary accent color
+- S.T.A.R_ID green (#00843D) as the primary accent color
 - Mobile-responsive design throughout
 - The virtual ID card will feature a modern redesign with gradient green styling, university branding, and a prominent QR code
 

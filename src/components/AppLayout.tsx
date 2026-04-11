@@ -8,9 +8,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import NotificationsDropdown from "./NotificationsDropdown";
 
 export default function AppLayout() {
-  const { profile } = useAuth();
+  const { profile, isAdmin, isSuperAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const fallbackName = isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Student";
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -31,7 +33,7 @@ export default function AppLayout() {
               </Button>
             )}
             <h2 className="text-base sm:text-lg font-semibold font-sans truncate">
-              Welcome, {profile?.full_name || "Student"}
+              Welcome, {profile?.full_name || fallbackName}
             </h2>
           </div>
           <NotificationsDropdown />

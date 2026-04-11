@@ -229,7 +229,7 @@ function WatermarkOverlay({ watermarkText }: { watermarkText: string }) {
           {/* Circular text path */}
           <path id="topArc" d="M 20,70 A 50,50 0 0,1 120,70" fill="none" />
           <text fontSize="7" fill="white" fontWeight="600">
-            <textPath href="#topArc" startOffset="50%" textAnchor="middle">EGERTON UNIVERSITY</textPath>
+            <textPath href="#topArc" startOffset="50%" textAnchor="middle">S.T.A.R_ID</textPath>
           </text>
           <path id="botArc" d="M 20,70 A 50,50 0 0,0 120,70" fill="none" />
           <text fontSize="6" fill="white">
@@ -265,7 +265,7 @@ function IDCardFront({ CARD_WIDTH, CARD_HEIGHT, blurred, watermarkText, applicat
           <span className="text-sm font-bold" style={{ color: "hsla(45,100%,70%,1)" }}>EU</span>
         </div>
         <div>
-          <div className="font-bold text-xs tracking-wide">EGERTON UNIVERSITY</div>
+          <div className="font-bold text-xs tracking-wide">S.T.A.R_ID</div>
           <div className="text-[9px] text-white/55 uppercase tracking-[0.15em]">Student Identification Card</div>
         </div>
         {/* Small gold diamond accent */}
@@ -339,12 +339,12 @@ function IDCardBack({ CARD_WIDTH, CARD_HEIGHT, blurred, watermarkText, cardNumbe
       <div className="flex flex-col justify-between h-full relative z-10" style={{ padding: "16px 20px" }}>
         <div className="space-y-2">
           <div className="text-center">
-            <div className="font-bold text-xs tracking-wide">EGERTON UNIVERSITY</div>
-            <div className="text-[9px] text-white/55">P.O. Box 536 - 20115, Egerton, Kenya</div>
+            <div className="font-bold text-xs tracking-wide">S.T.A.R_ID</div>
+            <div className="text-[9px] text-white/55">S.T.A.R_ID Student ID System</div>
           </div>
           <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, hsla(45,100%,51%,0.3), transparent)" }} />
           <div className="text-[8px] text-white/65 space-y-0.5 leading-tight">
-            <p>This card is the property of Egerton University.</p>
+            <p>This card is the property of S.T.A.R_ID.</p>
             <p>If found, please return to the nearest campus office.</p>
             <p>This card must be carried at all times within campus premises.</p>
             <p>Unauthorized use or alteration is a disciplinary offence.</p>

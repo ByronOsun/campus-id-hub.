@@ -44,38 +44,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roleLoaded, setRoleLoaded] = useState(false);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
-    setProfile(data);
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+      setProfile(data);
+    } catch {
+      setProfile(null);
+    }
   };
 
   const checkAdmin = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    try {
+      const { data: adminStateData, error: adminStateError } = await supabase.rpc("current_admin_state_rpc");
+      if (!adminStateError) {
+        const state = Array.isArray(adminStateData) ? adminStateData[0] : adminStateData;
+        if (state && typeof state === "object") {
+          const isAdminFromRpc = Boolean(state.is_admin);
+          setIsAdmin(isAdminFromRpc);
+          setIsSuperAdmin(Boolean(state.is_super_admin));
+          setIsAdminApproved(isAdminFromRpc ? Boolean(state.is_admin_approved) : false);
+          setPinChanged(isAdminFromRpc ? Boolean(state.pin_changed) : true);
+          return;
+        }
+      }
 
-    const roles = (data || []).map((r) => r.role as string);
-    const adminRole = roles.includes("admin") || roles.includes("super_admin");
-    setIsAdmin(adminRole);
-    setIsSuperAdmin(roles.includes("super_admin"));
+      let roles: string[] = [];
 
-    if (adminRole) {
+      const { data: roleData, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+
+      if (!roleError) {
+        roles = (roleData || []).map((r) => r.role as string);
+      }
+
       const { data: pinData } = await supabase
         .from("admin_pins")
         .select("is_approved, pin_changed")
         .eq("user_id", userId)
         .maybeSingle();
-      setIsAdminApproved(pinData?.is_approved ?? false);
-      setPinChanged(pinData?.pin_changed ?? false);
-    } else {
+
+      // Treat either admin role OR existing admin pin record as admin identity.
+      const hasAdminRole = roles.includes("admin") || roles.includes("super_admin");
+      const hasAdminPinRecord = Boolean(pinData);
+      const adminRole = hasAdminRole || hasAdminPinRecord;
+
+      setIsAdmin(adminRole);
+      setIsSuperAdmin(roles.includes("super_admin"));
+
+      if (adminRole) {
+        setIsAdminApproved(pinData?.is_approved ?? true);
+        setPinChanged(pinData?.pin_changed ?? false);
+      } else {
+        setIsAdminApproved(false);
+        setPinChanged(true);
+      }
+    } catch {
+      setIsAdmin(false);
+      setIsSuperAdmin(false);
       setIsAdminApproved(false);
       setPinChanged(true);
+    } finally {
+      setRoleLoaded(true);
     }
-    setRoleLoaded(true);
   };
 
   const refreshProfile = async () => {
@@ -90,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
+          setRoleLoaded(false);
           setTimeout(() => {
             fetchProfile(session.user.id);
             checkAdmin(session.user.id);
@@ -110,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setRoleLoaded(false);
         fetchProfile(session.user.id);
         checkAdmin(session.user.id);
       }
@@ -121,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem("star_id_portal_mode");
     setUser(null);
     setSession(null);
     setProfile(null);

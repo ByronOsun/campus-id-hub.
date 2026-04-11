@@ -30,15 +30,19 @@ export default function ChangePin() {
       toast.error("PINs do not match");
       return;
     }
+    if (!user?.email) {
+      toast.error("Unable to identify current admin account. Please sign in again.");
+      return;
+    }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("admin-reset-pin", {
-        body: { email: user?.email, new_pin: newPin, mark_changed: true },
+      const { error } = await supabase.rpc("admin_reset_pin_rpc", {
+        p_email: user.email,
+        p_new_pin: newPin,
+        p_mark_changed: true,
       });
-
-      if (error) throw new Error(data?.error || "Failed to change PIN");
-      if (data?.error) throw new Error(data.error);
+      if (error) throw error;
 
       toast.success("PIN changed successfully! Please sign in again.");
       await signOut();

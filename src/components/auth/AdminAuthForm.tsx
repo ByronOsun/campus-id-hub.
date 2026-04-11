@@ -5,69 +5,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Mail, User, ArrowRight, KeyRound, Copy, CheckCircle2, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Mail, ArrowRight, CheckCircle2, ArrowLeft } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useNavigate } from "react-router-dom";
 
-type Mode = "pin_login" | "signup" | "forgot_pin";
+type Mode = "pin_login" | "forgot_pin";
+
+const hasPlaceholderAnonKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "")
+  .toString()
+  .includes("PASTE_ANON_PUBLIC_KEY");
 
 export default function AdminAuthForm() {
+  const PORTAL_MODE_KEY = "star_id_portal_mode";
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("pin_login");
   const [loading, setLoading] = useState(false);
   const [pin, setPin] = useState("");
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [generatedPin, setGeneratedPin] = useState<string | null>(null);
-  const [pinCopied, setPinCopied] = useState(false);
 
   // Forgot PIN state
   const [resetEmail, setResetEmail] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinResetSuccess, setPinResetSuccess] = useState(false);
-
-  // OTP 2FA state
-  const [otpStep, setOtpStep] = useState(false);
-  const [otpEmail, setOtpEmail] = useState("");
-  const [otp, setOtp] = useState("");
   const [needsPinChange, setNeedsPinChange] = useState(false);
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      toast.error("Please enter the 6-digit code");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("verify-otp", {
-        body: { email: otpEmail, token: otp },
-      });
-      if (error) throw new Error(data?.error || "Verification failed");
-      if (data?.error) throw new Error(data.error);
-      if (data?.session) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-      }
-      toast.success("Welcome back, Admin!");
-
-      if (needsPinChange) {
-        navigate("/change-pin", { replace: true });
-      } else {
-        navigate("/admin", { replace: true });
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Invalid or expired verification code");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasPlaceholderAnonKey) {
+      toast.error("Supabase anon key is not set in .env. Replace VITE_SUPABASE_PUBLISHABLE_KEY and restart dev server.");
+      return;
+    }
     if (pin.length !== 4) {
       toast.error("Please enter your 4-digit PIN");
       return;
@@ -75,52 +42,34 @@ export default function AdminAuthForm() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("admin-pin-login", {
-        body: { pin },
+      const { data, error } = await supabase.rpc("admin_pin_login_rpc", {
+        p_pin: pin,
       });
-
-      if (error) throw new Error(data?.error || "Login failed");
-      if (data?.error) throw new Error(data.error);
-
-      // PIN verified - now send OTP for 2FA via custom edge function
-      const { data: otpData, error: otpError } = await supabase.functions.invoke("send-otp", {
-        body: { email: data.email },
-      });
-
-      if (otpError) throw new Error(otpData?.error || "Failed to send verification code");
-      if (otpData?.error) throw new Error(otpData.error);
-
-      setOtpEmail(data.email);
-      setNeedsPinChange(!data.pin_changed);
-      setOtpStep(true);
-      toast.success("A 6-digit verification code has been sent to your email!");
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const newPin = String(Math.floor(1000 + Math.random() * 9000));
-    const randomPassword = crypto.randomUUID();
-
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password: randomPassword,
-        options: {
-          data: { full_name: fullName, user_type: "staff", admin_pin: newPin },
-          emailRedirectTo: `${window.location.origin}/auth`,
-        },
-      });
-
       if (error) throw error;
-      setGeneratedPin(newPin);
-      toast.success("Account created! Save your PIN below.");
+
+      const row = Array.isArray(data) ? data[0] : null;
+      if (!row?.email) {
+        throw new Error("Admin PIN login is not configured. Run the SQL setup for admin RPC functions.");
+      }
+
+      // Direct admin sign-in: password is synchronized with 4-digit PIN.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: row.email,
+        password: pin,
+      });
+      if (signInError) {
+        throw new Error("PIN verified, but password sign-in failed. Run the SQL sync script to align admin PIN and auth password.");
+      }
+
+      setNeedsPinChange(!row.pin_changed);
+      localStorage.setItem(PORTAL_MODE_KEY, "admin");
+      toast.success("Welcome back, Admin!");
+
+      if (!row.pin_changed) {
+        navigate("/change-pin", { replace: true });
+      } else {
+        navigate("/admin", { replace: true });
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -130,6 +79,10 @@ export default function AdminAuthForm() {
 
   const handleResetPin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasPlaceholderAnonKey) {
+      toast.error("Supabase anon key is not set in .env. Replace VITE_SUPABASE_PUBLISHABLE_KEY and restart dev server.");
+      return;
+    }
     if (newPin.length !== 4) {
       toast.error("Please enter a 4-digit PIN");
       return;
@@ -141,12 +94,12 @@ export default function AdminAuthForm() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("admin-reset-pin", {
-        body: { email: resetEmail, new_pin: newPin },
+      const { error } = await supabase.rpc("admin_reset_pin_rpc", {
+        p_email: resetEmail,
+        p_new_pin: newPin,
+        p_mark_changed: true,
       });
-
-      if (error) throw new Error(data?.error || "Reset failed");
-      if (data?.error) throw new Error(data.error);
+      if (error) throw error;
 
       setPinResetSuccess(true);
       toast.success("PIN updated successfully!");
@@ -157,119 +110,14 @@ export default function AdminAuthForm() {
     }
   };
 
-  const copyPin = () => {
-    if (generatedPin) {
-      navigator.clipboard.writeText(generatedPin);
-      setPinCopied(true);
-      toast.success("PIN copied to clipboard");
-      setTimeout(() => setPinCopied(false), 2000);
-    }
-  };
-
   const resetFormState = () => {
     setPin("");
-    setEmail("");
-    setFullName("");
     setResetEmail("");
     setNewPin("");
     setConfirmPin("");
     setPinResetSuccess(false);
-    setGeneratedPin(null);
-    setOtpStep(false);
-    setOtp("");
-    setOtpEmail("");
     setNeedsPinChange(false);
   };
-
-  // OTP verification screen
-  if (otpStep) {
-    return (
-      <Card className="border-0 shadow-xl">
-        <CardHeader className="space-y-1 pb-4 text-center">
-          <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <ShieldCheck className="h-8 w-8 text-primary" />
-          </div>
-          <CardTitle className="text-2xl">Two-Factor Verification</CardTitle>
-          <CardDescription>
-            A 6-digit verification code has been sent to <strong>{otpEmail}</strong>. Enter it below to complete sign in.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleVerifyOtp} className="space-y-6">
-            <div className="flex justify-center">
-              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Code expires in 5 minutes. Check your spam folder if you don't see it.
-            </p>
-            <Button type="submit" className="w-full gap-2" disabled={loading || otp.length !== 6}>
-              {loading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                <>
-                  Verify & Sign In
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => { setOtpStep(false); setOtp(""); }}
-                className="text-sm text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back to PIN login
-              </button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (generatedPin) {
-    return (
-      <Card className="border-0 shadow-xl">
-        <CardHeader className="space-y-1 pb-4 text-center">
-          <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <KeyRound className="h-8 w-8 text-primary" />
-          </div>
-          <CardTitle className="text-2xl">Your Admin PIN</CardTitle>
-          <CardDescription>Save this PIN securely. You'll use it to sign in from now on.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-center gap-3 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 p-6">
-            <span className="text-4xl font-mono font-bold tracking-[0.5em] text-primary">{generatedPin}</span>
-            <button onClick={copyPin} className="text-muted-foreground hover:text-primary transition-colors">
-              {pinCopied ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5" />}
-            </button>
-          </div>
-
-          <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200">
-            <p className="font-semibold mb-1">⚠️ Important:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Please verify your email before signing in.</li>
-              <li>Your account requires super admin approval before you can access the dashboard.</li>
-              <li>You will be notified once approved.</li>
-            </ul>
-          </div>
-
-          <Button className="w-full" onClick={() => { resetFormState(); setMode("pin_login"); }}>
-            Go to PIN Login
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (pinResetSuccess) {
     return (
@@ -294,13 +142,11 @@ export default function AdminAuthForm() {
     <Card className="border-0 shadow-xl">
       <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-2xl">
-          {mode === "pin_login" ? "Admin Sign In" : mode === "signup" ? "Admin Registration" : "Reset PIN"}
+          {mode === "pin_login" ? "Admin Sign In" : "Reset PIN"}
         </CardTitle>
         <CardDescription>
           {mode === "pin_login"
-            ? "Enter your 4-digit admin PIN to sign in"
-            : mode === "signup"
-            ? "Register with your email to receive your admin PIN"
+            ? "Enter the 4-digit PIN assigned by the super admin. You will be asked to change it on first sign in."
             : "Enter your email and choose a new 4-digit PIN"}
         </CardDescription>
       </CardHeader>
@@ -339,8 +185,11 @@ export default function AdminAuthForm() {
                 Forgot your PIN?
               </button>
             </div>
+            <p className="text-center text-xs text-muted-foreground">
+              New admin accounts are provisioned by super admin in Supabase.
+            </p>
           </form>
-        ) : mode === "forgot_pin" ? (
+        ) : (
           <form onSubmit={handleResetPin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="reset-email">Email Address</Label>
@@ -349,7 +198,7 @@ export default function AdminAuthForm() {
                 <Input
                   id="reset-email"
                   type="email"
-                  placeholder="njuguna.0299123@student.egerton.ac.ke"
+                  placeholder="admin@starid.ac.ke"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   className="pl-10"
@@ -403,47 +252,6 @@ export default function AdminAuthForm() {
               </button>
             </div>
           </form>
-        ) : (
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="admin-name">Full Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="admin-name" placeholder="John Doe" value={fullName} onChange={(e) => setFullName(e.target.value)} className="pl-10" required />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="admin-email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="admin-email" type="email" placeholder="njuguna.0299123@student.egerton.ac.ke" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" required />
-              </div>
-            </div>
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
-              {loading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                <>
-                  Register & Get PIN
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </form>
-        )}
-
-        {mode !== "forgot_pin" && (
-          <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">
-              {mode === "pin_login" ? "Need an admin account?" : "Already have a PIN?"}
-            </span>{" "}
-            <button
-              onClick={() => { resetFormState(); setMode(mode === "pin_login" ? "signup" : "pin_login"); }}
-              className="text-primary font-medium hover:underline"
-            >
-              {mode === "pin_login" ? "Register" : "Sign in with PIN"}
-            </button>
-          </div>
         )}
       </CardContent>
     </Card>

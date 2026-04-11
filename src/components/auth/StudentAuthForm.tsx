@@ -1,20 +1,24 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ArrowLeft, ShieldCheck, Hash } from "lucide-react";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ArrowLeft, Hash } from "lucide-react";
 import PasswordStrengthIndicator from "./PasswordStrengthIndicator";
 import { validateStudentName, validateRegNumber, generateStudentEmail } from "@/lib/validators";
 
 export default function StudentAuthForm() {
+  const authRedirectBaseUrl = (import.meta.env.VITE_AUTH_REDIRECT_BASE_URL || window.location.origin).replace(/\/$/, "");
+  const PORTAL_MODE_KEY = "star_id_portal_mode";
+  const RESEND_COOLDOWN_SECONDS = 60;
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Login fields
   const [email, setEmail] = useState("");
@@ -25,11 +29,6 @@ export default function StudentAuthForm() {
   const [regNumber, setRegNumber] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [showRegPassword, setShowRegPassword] = useState(false);
-
-  // OTP 2FA state
-  const [otpStep, setOtpStep] = useState(false);
-  const [otpEmail, setOtpEmail] = useState("");
-  const [otp, setOtp] = useState("");
 
   // Derived email from name + reg number
   const generatedEmail = useMemo(() => {
@@ -42,6 +41,42 @@ export default function StudentAuthForm() {
   const nameValidation = useMemo(() => validateStudentName(fullName), [fullName]);
   const regValidation = useMemo(() => validateRegNumber(regNumber), [regNumber]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
+  const handleResendVerification = async () => {
+    if (!pendingVerificationEmail || resendCooldown > 0) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingVerificationEmail,
+        options: {
+          emailRedirectTo: `${authRedirectBaseUrl}/auth`,
+        },
+      });
+
+      if (error) throw error;
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      toast.success("Verification email sent again. Check your inbox.");
+    } catch (error: any) {
+      const message = String(error?.message || "").toLowerCase();
+      if (message.includes("rate limit") || message.includes("security purposes")) {
+        toast.error("Too many email requests. Please wait a minute and try again.");
+      } else {
+        toast.error(error?.message || "Failed to resend verification email.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.endsWith("@student.egerton.ac.ke")) {
@@ -51,40 +86,14 @@ export default function StudentAuthForm() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${authRedirectBaseUrl}/reset-password`,
       });
       if (error) throw error;
       toast.success("Password reset link sent! Check your email.");
       setIsForgotPassword(false);
+      setEmail("");
     } catch (error: any) {
       toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      toast.error("Please enter the 6-digit code");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("verify-otp", {
-        body: { email: otpEmail, token: otp },
-      });
-      if (error) throw new Error(data?.error || "Verification failed");
-      if (data?.error) throw new Error(data.error);
-      if (data?.session) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-      }
-      toast.success("Welcome back!");
-    } catch (error: any) {
-      toast.error(error.message || "Invalid or expired verification code");
     } finally {
       setLoading(false);
     }
@@ -98,23 +107,15 @@ export default function StudentAuthForm() {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-credentials", {
-        body: { email, password },
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      if (error) throw new Error(data?.error || "Login failed");
-      if (data?.error) throw new Error(data.error);
-
-      const { data: otpData, error: otpError } = await supabase.functions.invoke("send-otp", {
-        body: { email },
-      });
-      if (otpError) throw new Error(otpData?.error || "Failed to send verification code");
-      if (otpData?.error) throw new Error(otpData.error);
-
-      setOtpEmail(email);
-      setOtpStep(true);
-      toast.success("A 6-digit verification code has been sent to your email!");
+      if (error) throw error;
+      localStorage.setItem(PORTAL_MODE_KEY, "student");
+      toast.success("Welcome back!");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -136,6 +137,10 @@ export default function StudentAuthForm() {
       toast.error("Unable to generate email. Check your name and registration number.");
       return;
     }
+    if (!nameValidation.normalized) {
+      toast.error("Please enter a valid full name.");
+      return;
+    }
     if (regPassword.length < 6) {
       toast.error("Password must be at least 6 characters");
       return;
@@ -143,90 +148,43 @@ export default function StudentAuthForm() {
 
     setLoading(true);
     try {
-      // Server-side validation
-      const { data: valData, error: valError } = await supabase.functions.invoke("validate-registration", {
-        body: { full_name: fullName, reg_number: regNumber },
-      });
-
-      if (valError) throw new Error(valData?.error || "Validation failed");
-      if (valData?.error) throw new Error(valData.error);
-
-      // Register with the generated email
+      // Keep signup simple: client-side validation + Supabase email verification only.
       const { error } = await supabase.auth.signUp({
         email: generatedEmail,
         password: regPassword,
         options: {
           data: {
-            full_name: valData.normalized_name,
+            full_name: nameValidation.normalized,
             user_type: "student",
             reg_number: regNumber.trim().toUpperCase(),
           },
-          emailRedirectTo: `${window.location.origin}/auth`,
+          emailRedirectTo: `${authRedirectBaseUrl}/auth`,
         },
       });
       if (error) throw error;
-      toast.success("Account created! Check your email to verify your account.");
+      setPendingVerificationEmail(generatedEmail);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      toast.success("Account created! Check your email to verify and complete registration.");
+      // Clear form
+      setIsLogin(true);
+      setFullName("");
+      setRegNumber("");
+      setRegPassword("");
+      setEmail(generatedEmail);
+      setPassword("");
     } catch (error: any) {
-      toast.error(error.message);
+      const message = String(error?.message || "").toLowerCase();
+      if (message.includes("rate limit") || message.includes("security purposes")) {
+        toast.error("Too many email requests right now. Wait 1-2 minutes, then try again.");
+      } else if (message.includes("already registered") || message.includes("already exists")) {
+        toast.error("This account already exists. Use Sign In instead.");
+      } else {
+        toast.error(error?.message || "Failed to create account. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
-
-  // OTP verification screen
-  if (otpStep) {
-    return (
-      <Card className="border-0 shadow-xl">
-        <CardHeader className="space-y-1 pb-4 text-center">
-          <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <ShieldCheck className="h-8 w-8 text-primary" />
-          </div>
-          <CardTitle className="text-2xl">Two-Factor Verification</CardTitle>
-          <CardDescription>
-            A 6-digit verification code has been sent to <strong>{otpEmail}</strong>. Enter it below to complete sign in.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleVerifyOtp} className="space-y-6">
-            <div className="flex justify-center">
-              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Code expires in 5 minutes. Check your spam folder if you don't see it.
-            </p>
-            <Button type="submit" className="w-full gap-2" disabled={loading || otp.length !== 6}>
-              {loading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : (
-                <>
-                  Verify & Sign In
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => { setOtpStep(false); setOtp(""); }}
-                className="text-sm text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back to login
-              </button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    );
-  }
 
   // Forgot password screen
   if (isForgotPassword) {
@@ -280,6 +238,25 @@ export default function StudentAuthForm() {
           <CardDescription>Sign in with your university email</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          {pendingVerificationEmail && (
+            <div className="mb-4 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+              <p className="text-foreground">
+                Verification pending for <strong>{pendingVerificationEmail}</strong>
+              </p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">The verification link is sent to this generated student email address.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResendVerification}
+                  disabled={loading || resendCooldown > 0}
+                >
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend email"}
+                </Button>
+              </div>
+            </div>
+          )}
           <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
               <Label htmlFor="student-email">University Email</Label>

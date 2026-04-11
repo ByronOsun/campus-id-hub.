@@ -5,16 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Lock, Eye, EyeOff, ArrowRight, GraduationCap } from "lucide-react";
+import { Lock, Eye, EyeOff, ArrowRight, GraduationCap, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function ResetPassword() {
+  const authRedirectBaseUrl = (import.meta.env.VITE_AUTH_REDIRECT_BASE_URL || window.location.origin).replace(/\/$/, "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [invalidReason, setInvalidReason] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,8 +34,53 @@ export default function ResetPassword() {
     if (hash.includes("type=recovery")) {
       setReady(true);
     }
+
+    if (hash.includes("error=")) {
+      const fragment = new URLSearchParams(hash.replace(/^#/, ""));
+      const errorDescription = fragment.get("error_description") || "Reset link is invalid or expired.";
+      const cleanDescription = errorDescription.replace(/\+/g, " ");
+      setInvalidReason(cleanDescription);
+    }
+
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
+  const handleRequestNewLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!resetEmail.endsWith("@student.egerton.ac.ke")) {
+      toast.error("Please use your @student.egerton.ac.ke email address");
+      return;
+    }
+
+    if (resendCooldown > 0) {
+      toast.error(`Please wait ${resendCooldown}s before requesting another link.`);
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${authRedirectBaseUrl}/reset-password`,
+      });
+      if (error) throw error;
+
+      setResendCooldown(60);
+      toast.success("A new reset link has been sent. Use the latest email.");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send reset link");
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,13 +113,40 @@ export default function ResetPassword() {
             <GraduationCap className="h-10 w-10 text-primary mx-auto" />
             <CardTitle className="text-2xl">Invalid or Expired Link</CardTitle>
             <CardDescription>
-              This password reset link is invalid or has expired. Please request a new one.
+              This password reset link is invalid or has expired. Request a new one below.
             </CardDescription>
+            {invalidReason && (
+              <p className="text-xs text-muted-foreground">Reason: {invalidReason}</p>
+            )}
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => navigate("/auth")}>
-              Back to Login
-            </Button>
+            <form onSubmit={handleRequestNewLink} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">University Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="njuguna.0299123@student.egerton.ac.ke"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={resendLoading || resendCooldown > 0}>
+                {resendLoading
+                  ? "Sending..."
+                  : resendCooldown > 0
+                  ? `Request again in ${resendCooldown}s`
+                  : "Request New Reset Link"}
+              </Button>
+              <Button type="button" variant="outline" className="w-full" onClick={() => navigate("/auth")}> 
+                Back to Login
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>

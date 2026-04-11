@@ -85,7 +85,7 @@ export default function Verify() {
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex items-center justify-center gap-2 mb-6">
           <GraduationCap className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold">Egerton University</span>
+          <span className="text-xl font-bold">S.T.A.R_ID</span>
         </div>
 
         <Card>

@@ -38,6 +38,7 @@ export default function AppSidebar({ onClose }: { onClose?: () => void }) {
     ? [...adminLinks, ...(isSuperAdmin ? superAdminLinks : [])]
     : studentLinks;
   const sectionLabel = isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Student";
+  const sidebarNameFallback = isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Student";
 
   const handleNav = (to: string) => {
     navigate(to);
@@ -50,7 +51,7 @@ export default function AppSidebar({ onClose }: { onClose?: () => void }) {
         <div className="flex items-center gap-3">
           <GraduationCap className="h-8 w-8 text-sidebar-primary" />
           <div>
-            <div className="font-bold text-sm">Egerton University</div>
+            <div className="font-bold text-sm">S.T.A.R_ID</div>
             <div className="text-xs text-sidebar-foreground/60">Student ID System</div>
           </div>
         </div>
@@ -88,7 +89,7 @@ export default function AppSidebar({ onClose }: { onClose?: () => void }) {
             {profile?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || "?"}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">{profile?.full_name || "Student"}</div>
+            <div className="text-sm font-medium truncate">{profile?.full_name || sidebarNameFallback}</div>
             <div className="text-xs text-sidebar-foreground/50 truncate">{user?.email}</div>
           </div>
         </div>
