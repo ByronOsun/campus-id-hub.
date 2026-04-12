@@ -44,16 +44,16 @@ export default function Application() {
 
   useEffect(() => {
     if (profile) {
-      setForm({
-        full_name: profile.full_name || "",
-        reg_number: profile.reg_number || "",
-        faculty: profile.faculty || "",
-        department: profile.department || "",
-        course: profile.course || "",
-        campus: profile.campus || "Main Campus",
-        year_of_study: profile.year_of_study?.toString() || "",
-        phone: profile.phone || "",
-      });
+      setForm((prev) => ({
+        full_name: profile.full_name || prev.full_name,
+        reg_number: profile.reg_number || prev.reg_number,
+        faculty: profile.faculty || prev.faculty,
+        department: profile.department || prev.department,
+        course: profile.course || prev.course,
+        campus: profile.campus || prev.campus || "Main Campus",
+        year_of_study: profile.year_of_study?.toString() || prev.year_of_study,
+        phone: profile.phone || prev.phone,
+      }));
       if (profile.photo_url) setPhotoPreview(profile.photo_url);
     }
   }, [profile]);
@@ -154,8 +154,8 @@ export default function Application() {
       toast.error("Please upload a passport photo first");
       return;
     }
-    if (!form.reg_number || !form.faculty || !form.course || !form.full_name) {
-      toast.error("Please complete all required fields");
+    if (!form.reg_number || !form.faculty || !form.course || !form.full_name || !form.department || !form.year_of_study || !form.phone) {
+      toast.error("Please complete all required fields before submitting");
       return;
     }
 
@@ -242,17 +242,13 @@ export default function Application() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Full Name *</Label>
-              <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} disabled={!!alreadySubmitted} />
-              {form.full_name && !validateStudentName(form.full_name).valid && (
-                <p className="text-xs text-destructive">{validateStudentName(form.full_name).error}</p>
-              )}
+              <Input value={form.full_name} readOnly disabled className="bg-muted" />
+              <p className="text-xs text-muted-foreground">Auto-filled from your registration</p>
             </div>
             <div className="space-y-2">
               <Label>Registration Number *</Label>
-              <Input placeholder="e.g. S13/02928/23" value={form.reg_number} onChange={(e) => setForm({ ...form, reg_number: e.target.value })} disabled={!!alreadySubmitted} />
-              {form.reg_number && !validateRegNumber(form.reg_number).valid && (
-                <p className="text-xs text-destructive">{validateRegNumber(form.reg_number).error}</p>
-              )}
+              <Input value={form.reg_number} readOnly disabled className="bg-muted" />
+              <p className="text-xs text-muted-foreground">Auto-filled from your registration</p>
             </div>
             <div className="space-y-2">
               <Label>Faculty *</Label>
@@ -264,8 +260,8 @@ export default function Application() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Department</Label>
-              <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} disabled={!!alreadySubmitted} />
+              <Label>Department *</Label>
+              <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} disabled={!!alreadySubmitted} placeholder="e.g. Computer Science" />
             </div>
             <div className="space-y-2">
               <Label>Course *</Label>
@@ -281,7 +277,7 @@ export default function Application() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Year of Study</Label>
+              <Label>Year of Study *</Label>
               <Select value={form.year_of_study} onValueChange={(v) => setForm({ ...form, year_of_study: v })} disabled={!!alreadySubmitted}>
                 <SelectTrigger><SelectValue placeholder="Select year" /></SelectTrigger>
                 <SelectContent>
@@ -290,7 +286,7 @@ export default function Application() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Phone Number</Label>
+              <Label>Phone Number *</Label>
               <Input
                 placeholder="+254712345678"
                 value={form.phone}
