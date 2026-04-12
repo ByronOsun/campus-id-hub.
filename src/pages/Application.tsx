@@ -260,8 +260,8 @@ export default function Application() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Department</Label>
-              <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} disabled={!!alreadySubmitted} />
+              <Label>Department *</Label>
+              <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} disabled={!!alreadySubmitted} placeholder="e.g. Computer Science" />
             </div>
             <div className="space-y-2">
               <Label>Course *</Label>
