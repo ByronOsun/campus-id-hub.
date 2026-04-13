@@ -1,7 +1,7 @@
 
 
 # Digital Student ID Generation & Management System
-## Egerton University
+## Egerton University.
 
 ### Overview
 A full-stack web application that digitizes the entire student ID lifecycle — from application and photo upload, through admin verification, to virtual ID generation, status tracking, and lost/found management. Built with React + Supabase with real authentication restricted to `@student.egerton.ac.ke` emails.
